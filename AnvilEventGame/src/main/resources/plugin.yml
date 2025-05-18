@@ -1,0 +1,21 @@
+﻿name: AnvilEventGame
+main: org.anvilEventGame.AnvilEventGame
+version: 1.0
+api-version: 1.20
+depend: [SimpleEventManager]
+
+commands:
+  anvil:
+    description: Commandes pour configurer l'arène Anvil
+    usage: /anvil setarena pos1|pos2 ou /anvil reload ou /anvil resetarena
+
+permissions:
+  anvil.setarena:
+    description: Autorise à configurer l'arène
+    default: op
+  anvil.reload:
+    description: Autorise à recharger la configuration
+    default: op
+  anvil.resetarena:
+    description: Autorise à reset l'arène
+    default: op
