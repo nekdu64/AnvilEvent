@@ -1,0 +1,5 @@
+org\anvilEventGame\game\MyMiniGame$1.class
+org\anvilEventGame\game\MyMiniGame.class
+org\anvilEventGame\commands\SetArenaCommand.class
+org\anvilEventGame\DelayUtil.class
+org\anvilEventGame\AnvilEventGame.class
