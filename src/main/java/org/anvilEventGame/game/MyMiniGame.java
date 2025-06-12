@@ -10,6 +10,7 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
 import org.bukkit.event.*;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.meta.FireworkMeta;
@@ -35,7 +36,7 @@ public class MyMiniGame implements Listener {
     private final List<BlockState> originalBlocks = new ArrayList<>();
     private final AnvilEventGame plugin;
     private int countdownTaskId = -1;
-    private Player winner;
+    public Player winner;
     public boolean running = false;
     private boolean Finale = false;
     private int startPlayerCount;
@@ -57,6 +58,7 @@ public class MyMiniGame implements Listener {
         SimpleEventManager sem = (SimpleEventManager) Bukkit.getPluginManager().getPlugin("SimpleEventManager");
         // Pour tp les joueurs au spawn de l'event grace au spawn set dans le manager avec /event setspawn anvil
         Location loc = EventUtils.getEventSpawnLocation(sem, plugin.getEventName());
+        Bukkit.getPluginManager().registerEvents(MyMiniGame.this, plugin);
         for (Player player : players) {
             player.teleport(loc);
         }
@@ -89,18 +91,30 @@ public class MyMiniGame implements Listener {
         for (Player player : players) {
             player.setGameMode(GameMode.SURVIVAL);
         }
-        String Configchoisie;
+        // Vérifie si la config existe dans AnvilConfig, sinon sélectionne une config aléatoire
+        ConfigurationSection listConfig = plugin.getConfig().getConfigurationSection("AnvilConfig");
         running = true;
 
-        //Verificqtion si la config est la config finale sinon config choisie sinon config aléatoire
-        if (!Forceconfig.equalsIgnoreCase(plugin.getConfig().getString("AnvilConfig.FinaleConfig.Name"))){
-            Configchoisie = Forceconfig.isEmpty() ? Randomconfig() : getConfigNumberByName(Forceconfig);
-        } else {
-            Configchoisie = Forceconfig;
+        String configChoisie = null;
+        if (listConfig != null) {
+            for (String key : listConfig.getKeys(false)) {
+                if (key.equalsIgnoreCase(Forceconfig)) {
+                    configChoisie = key; // utiliser le vrai nom avec la bonne casse
+                    break;
+                }
+            }
         }
+        if (configChoisie == null) {
+            configChoisie = plugin.Randomconfig();
+        }
+
+        for (Player player : players) {
+            player.sendTitle("§c§lANVIL", "§e"+configChoisie, 10, 100, 20);
+        }
+        String finalConfigChoisie = configChoisie;
         //Choix de la config et affichage
         delayUtil.delay(100, () -> {
-
+            Finale = false;
             // Start Countdown -
             countdownTaskId = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
                 int countdown = 10;
@@ -114,9 +128,8 @@ public class MyMiniGame implements Listener {
                             player.sendTitle("§a§lGO !", "", 10, 20, 20);
                             player.sendPotionEffectChange(player , Resistance);
                         }
-                        Bukkit.getPluginManager().registerEvents(MyMiniGame.this, plugin);
                         Bukkit.getScheduler().cancelTask(countdownTaskId);
-                        Départanvil(Configchoisie); //  LACHER LES ENCLUMES
+                        Départanvil("AnvilConfig."+finalConfigChoisie); //  LACHER LES ENCLUMES
                     }
                     if (countdown <= 3 && countdown > 0) {
                         for (Player player : players) {
@@ -132,7 +145,7 @@ public class MyMiniGame implements Listener {
         });
     }
 
-    public void stop() {
+    public void normalstop() {
 
         Location pos1 = getLoc("arena.pos1");
         HandlerList.unregisterAll(this);
@@ -150,73 +163,21 @@ public class MyMiniGame implements Listener {
     }
 
 
-    public String getConfigNumberByName(String name) {
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("AnvilConfig");
-        if (section == null) {
-            getOnlinePlayers().forEach(player -> {
-                if (player.isOp()) {
-                    player.sendMessage("Config "+name+" n'existe pas");
-                }
-            });
-        }
-
-        for (String key : section.getKeys(false)) {
-            String configName = plugin.getConfig().getString("AnvilConfig." + key + ".Name");
-            if (configName != null && configName.equalsIgnoreCase(name)) {
-                try {
-                    return String.valueOf(Integer.parseInt(key.replace("Config", "")));
-                } catch (NumberFormatException e) {
-                    getOnlinePlayers().forEach(player -> {
-                        if (player.isOp()) {
-                            player.sendMessage("§cConfig "+name+" n'existe pas, choix aléatoire d'une config à la place");
-                        }
-                    });
-                    return Randomconfig();
-                }
-            }
-        }
-        return ""; // Not found
-    }
-
-    private String Randomconfig() {
-
-        int x = 0; //nombres de config actives
-        ArrayList<String> NameConfig = new ArrayList<>();
-        for (int i = 1; i < 11; i++) {
-            String Name = plugin.getConfig().getString("AnvilConfig.Config" + i + ".Name");
-            if (!Name.equals("NotUse")) {
-                NameConfig.add(Name);
-                x++;
-            }
-        }
-        int randomNumber = (int) (Math.random() * x);//obtient un nombre entre 1 et nombre de config active
-        String Configchoisie = NameConfig.get(randomNumber);
-        // Affichage du type choisi
-        for (Player player : players) {
-            player.sendTitle("§cANVIL", "Mode : " + Configchoisie, 10, 120, 20);
-        }
-        randomNumber++;
-        return String.valueOf(randomNumber); // retourne sous forme de chaîne
-    }
 
 
-    private void Départanvil(String Configchoisie) {
+    private void Départanvil(String configChoisie) {
 
-        //Les taches sont plkanifiers a l'avance, tout est lancé d'ofzzzfice
-        String Config = "AnvilConfig.Config" + Configchoisie + ".Anvil";
+        String Config = configChoisie + ".Anvil";
         List<List<Integer>> AnvilList = (List<List<Integer>>) plugin.getConfig().getList(Config);
-        int TimeMultiVagueTick = plugin.getConfig().getInt("AnvilConfig.Config" + Configchoisie + ".TimeMultiVagueTick");
-        int TimeVagueTick = plugin.getConfig().getInt("AnvilConfig.Config" + Configchoisie + ".TimeVagueTick");
-        String NameConfig = plugin.getConfig().getString("AnvilConfig.Config" + Configchoisie + ".Name");
+        int TimeMultiVagueTick = plugin.getConfig().getInt(configChoisie + ".TimeMultiVagueTick");
+        int TimeVagueTick = plugin.getConfig().getInt(configChoisie + ".TimeVagueTick");
+        String NameConfig = plugin.getConfig().getString(configChoisie + ".Name");
         String WorldEven = plugin.getConfig().getString("arena.pos1.world");
         Bukkit.getWorld(WorldEven).setGameRule(GameRule.DO_ENTITY_DROPS, false);
         int totalDelay = 0;
-        int delayAfterTitle = plugin.getConfig().getInt("AnvilConfig.Config" + Configchoisie + ".TimeAfterTitle");
+        int delayAfterTitle = plugin.getConfig().getInt(configChoisie + ".TimeAfterTitle");
         ; // ticks entre l'affichage du titre et le début de la 1ère vague
 
-        for (Player player : players) {
-            player.sendTitle("§c§lANVIL", "§e"+NameConfig, 10, TimeVagueTick, 20);
-        }
 
         for (int i = 0; i < AnvilList.size(); i++) {
             int pourcentage = AnvilList.get(i).get(0);
@@ -252,13 +213,18 @@ public class MyMiniGame implements Listener {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 1.0f, 0.5f);
         }
 
+        World world = pos1.getWorld();
+        int maxY = Math.max(pos1.getBlockY(), pos2.getBlockY());
+
         for (int x = Math.min(pos1.getBlockX(), pos2.getBlockX()) + 1; x + 1 <= Math.max(pos1.getBlockX(), pos2.getBlockX()); x++) {
             for (int z = Math.min(pos1.getBlockZ(), pos2.getBlockZ()) + 1; z + 1 <= Math.max(pos1.getBlockZ(), pos2.getBlockZ()); z++) {
-                Location blockLoc = new Location(pos1.getWorld(), x, Math.max(pos1.getBlockY(), pos2.getBlockY()), z);
-                int randomNumber = (int) (Math.random() * 100);//obtient un nombre entre 1 et 100
+                int randomNumber = (int) (Math.random() * 100); // entre 0 et 99
                 if (randomNumber < pourcentage) {
-                    blockLoc.getBlock().setType(Material.ANVIL);
-
+                    Location spawnLoc = new Location(world, x + 0.5, maxY + 1, z + 0.5); // Centrage dans le bloc
+                    FallingBlock fallingAnvil = world.spawnFallingBlock(spawnLoc, Material.ANVIL.createBlockData());
+                    fallingAnvil.setDropItem(false); // Évite de drop une enclume au sol
+                    fallingAnvil.setHurtEntities(true); // Facultatif : les entités prennent des dégâts
+                    fallingAnvil.setDamagePerBlock(2.0f); // Facultatif : dégâts en fonction de la hauteur
                 }
             }
         }
@@ -280,7 +246,7 @@ public class MyMiniGame implements Listener {
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 1.0f, 0.5f);
 
         players.remove(player);
-        ranking.add(player); // ← Ajouté en fin de classement
+        ranking.addFirst(player);
 
         player.setGameMode(GameMode.SPECTATOR);
         SimpleEventManager sem = (SimpleEventManager) Bukkit.getPluginManager().getPlugin("SimpleEventManager");
@@ -298,7 +264,9 @@ public class MyMiniGame implements Listener {
 
             } else if (remaining <= 0 && !Finale) {
                 Bukkit.broadcastMessage("§c[Anvil] Égalité ! IL FAUT UN VAINQUEUR --> FINALE");
-                Finale(ranking.get(ranking.size() - 2), ranking.get(ranking.size() - 1));
+                Player last = ranking.get(0);         // Dernier éliminé
+                Player beforeLast = ranking.get(1);   // Avant-dernier éliminé
+                Finale(beforeLast, last);
 
             } else {
                 EliminationMessage eliminationMessage = new EliminationMessage();
@@ -317,13 +285,15 @@ public class MyMiniGame implements Listener {
         ranking.remove(player2);
         updateBossBar();
         KillAnvil(player1);
-
+        delayUtil.delay(20, () -> {
+            KillAnvil(player1);
+        });
         for (Player allPlayer : Bukkit.getOnlinePlayers()) {
             if (allPlayer.getWorld().equals(player1.getWorld())) {
                 allPlayer.sendTitle("§c§lFINALE", "§c" + player1.getName() + " §eVS§c " + player2.getName(), 10, 80, 20);
             }
         }
-        start(plugin.getConfig().getString("AnvilConfig.FinaleConfig.Name"));
+        start("Finale");
 
     }
 
@@ -332,7 +302,6 @@ public class MyMiniGame implements Listener {
 
         if (lastPlayer != null && !ranking.contains(lastPlayer) && lastPlayer.isOnline()) {
             delayUtil.cancelAll(); // Stop toutes les tâches programmées
-            KillAnvil(lastPlayer);
             winner = lastPlayer;
             List<BlockState> originalBlocksCopy = originalBlocks;
             for (BlockState state : originalBlocksCopy) {
@@ -344,6 +313,7 @@ public class MyMiniGame implements Listener {
             // Limite les feux d'artifice à 3
             for (int i = 0; i < 3; i++) {
                 delayUtil.delay(i*15, () -> {
+                    KillAnvil(lastPlayer);
                     spawnFireworks(lastPlayer);
                 });
             }
@@ -355,7 +325,7 @@ public class MyMiniGame implements Listener {
         }
 
         // Termine proprement le jeu après 7,5 secondes
-        stop();
+        normalstop();
 
 
     }
@@ -407,6 +377,14 @@ public class MyMiniGame implements Listener {
         // pas le droit de poser de blocs
         event.setCancelled(true);
     }
+    @EventHandler
+    public void onBlockBreak(BlockBreakEvent event) {
+        Player player = event.getPlayer();
+        if (!players.contains(player)) return;
+        if (!running) return;
+        // pas le droit de casser de blocs
+        event.setCancelled(true);
+    }
 
     @EventHandler
     public void onDamage(EntityDamageEvent event) {
@@ -440,5 +418,18 @@ public class MyMiniGame implements Listener {
     public List<Player> getPlayers() {
         return players;
     }
+    public void stop() {
 
+        Location pos1 = getLoc("arena.pos1");
+        HandlerList.unregisterAll(this);
+        Bukkit.getScheduler().cancelTask(countdownTaskId);
+        String WorldEvent = pos1.getWorld().getName();
+        Bukkit.getWorld(WorldEvent).setGameRule(GameRule.DO_ENTITY_DROPS, true);
+        if (bossBar != null) {
+            bossBar.removeAll();
+            bossBar = null;
+        }
+        running = false;
+        resetArena();
+    }
 }

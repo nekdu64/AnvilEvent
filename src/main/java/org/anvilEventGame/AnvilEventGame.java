@@ -4,6 +4,7 @@ import org.apache.maven.model.PluginContainer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.simpleEventManager.api.EventGame;
@@ -57,7 +58,7 @@ public class AnvilEventGame extends JavaPlugin implements EventGame {
 
     @Override
     public void Removeplayer(Player player) {
-        if (game != null) {
+        if (game != null && game.winner==null) {
             game.eliminate(player);
         }
     }
@@ -76,19 +77,27 @@ public class AnvilEventGame extends JavaPlugin implements EventGame {
 
     @Override
     public void setMode(String mode) {
-        this.mode = (mode != null) ? mode.toLowerCase() : pickRandomMode();
+        this.mode = (mode != null) ? mode.toLowerCase() : Randomconfig();
     }
 
-    private String pickRandomMode() {
-        List<String> availableModes = new ArrayList<>();
-        for (int i = 1; i <= 10; i++) {
-            String name = getConfig().getString("AnvilConfig.Config" + i + ".Name");
-            if (name != null && !"NotUse".equalsIgnoreCase(name)) {
-                availableModes.add(name);
+    public String Randomconfig() {
+        ConfigurationSection section = this.getConfig().getConfigurationSection("AnvilConfig");
+
+        if (section == null || section.getKeys(false).isEmpty()) return null;
+
+        List<String> validKeys = new ArrayList<>();
+
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection subSection = section.getConfigurationSection(key);
+            if (subSection != null && subSection.getBoolean("InRandomPool", false)) {
+                validKeys.add(key);
             }
         }
-        if (availableModes.isEmpty()) return "default";
-        return availableModes.get(new Random().nextInt(availableModes.size()));
+
+        if (validKeys.isEmpty()) return null;
+
+        int randomIndex = (int) (Math.random() * validKeys.size());
+        return validKeys.get(randomIndex);
     }
 
 
