@@ -187,6 +187,7 @@ public class MyMiniGame implements Listener {
             // Affiche le titre avec un léger délai
             delayUtil.delay(totalDelay + TimeVagueTick, () -> {
                 for (Player player : players) {
+                    player.setInvulnerable(false);
                     player.sendTitle("§cVague:" + vagueIndex, "§e" + nbVague + " X " + pourcentage + "%", 10, 60, 20);
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 1.0f, 0.5f);
                 }
